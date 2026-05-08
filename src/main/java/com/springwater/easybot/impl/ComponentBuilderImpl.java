@@ -43,21 +43,32 @@ public class ComponentBuilderImpl {
     }
 
     private static void handleImageSegment(MutableComponent component, ImageSegment segment) {
-        Style style = Style.EMPTY;
-        if (ConfigLoader.get().getSync().isChatImageSupport()) {
-            style = ComponentAdapterImpl.withHoverText(style, Component.literal("[[CICode,url=" + segment.getUrl() + ",name=" + segment.getSummary() + "]]"));
-        } else {
-            style = ComponentAdapterImpl.withHoverText(style, Component.literal("点我跳转").withStyle(ChatFormatting.GRAY));
-        }
-        style = ComponentAdapterImpl.withOpenUrl(style, segment.getUrl());
-        style = style.withColor(ChatFormatting.GREEN);
-        component.append(
-                Component.literal(segment.getSummary())
-                        .withStyle(style)
-        );
-
+    Style style = Style.EMPTY;
+    String imageUrl = segment.getUrl();
+    String summary = segment.getSummary();
+    
+    // 默认值处理
+    if (summary == null || summary.isEmpty()) summary = "[图片]";
+    
+    if (ConfigLoader.get().getSync().isChatImageSupport() 
+            && imageUrl != null && !imageUrl.isEmpty()) {
+        // CICode 格式：逗号会破坏解析，需要编码
+        String safeUrl = imageUrl.replace(",", "%2C");
+        style = ComponentAdapterImpl.withHoverText(style, 
+            Component.literal("[[CICode,url=" + safeUrl + ",name=" + summary + "]]"));
+    } else {
+        style = ComponentAdapterImpl.withHoverText(style, 
+            Component.literal("点我跳转").withStyle(ChatFormatting.GRAY));
     }
-
+    
+    // 只有 URL 有效时才设置点击跳转
+    if (imageUrl != null && !imageUrl.isEmpty()) {
+        style = ComponentAdapterImpl.withOpenUrl(style, imageUrl);
+    }
+    
+    style = style.withColor(ChatFormatting.GREEN);
+    component.append(Component.literal(summary).withStyle(style));
+}
     private static void handleAtSegment(MutableComponent component, AtSegment segment) {
         // 这表示 这是一个@玩家的消息
         if (!Objects.equals(segment.getAtUserId(), "") && !Objects.equals(segment.getAtUserName(), "")) {
