@@ -42,21 +42,46 @@ public class ComponentBuilderImpl {
         );
     }
 
-    private static void handleImageSegment(MutableComponent component, ImageSegment segment) {
-        Style style = Style.EMPTY;
-        if (ConfigLoader.get().getSync().isChatImageSupport()) {
-            style = ComponentAdapterImpl.withHoverText(style, Component.literal("[[CICode,url=" + segment.getUrl() + ",name=" + segment.getSummary() + "]]"));
-        } else {
-            style = ComponentAdapterImpl.withHoverText(style, Component.literal("点我跳转").withStyle(ChatFormatting.GRAY));
-        }
-        style = ComponentAdapterImpl.withOpenUrl(style, segment.getUrl());
-        style = style.withColor(ChatFormatting.GREEN);
-        component.append(
-                Component.literal(segment.getSummary())
-                        .withStyle(style)
-        );
-
+   private static void handleImageSegment(MutableComponent component, ImageSegment segment) {
+    String imageUrl = segment.getUrl();
+    String summary = segment.getSummary();
+    
+    // 如果摘要为空，给个默认显示
+    if (summary == null || summary.isEmpty()) {
+        summary = "[图片]";
     }
+    
+    Style style = Style.EMPTY;
+    
+    // 判断是否需要生成 CICode
+    if (ConfigLoader.get().getSync().isChatImageSupport() 
+            && imageUrl != null && !imageUrl.isEmpty()) {
+        
+        // 保护 CICode 格式：URL 中的逗号会破坏解析
+        String encodedUrl = imageUrl.replace(",", "%2C");
+        
+        // 生成 CICode hover 提示
+        String ciCode = "[[CICode,url=" + encodedUrl + ",name=" + summary + "]]";
+        style = ComponentAdapterImpl.withHoverText(style, Component.literal(ciCode));
+        
+        // 设置点击打开原图链接
+        style = ComponentAdapterImpl.withOpenUrl(style, imageUrl);
+        
+    } else if (imageUrl != null && !imageUrl.isEmpty()) {
+        // ChatImage 未启用，但 URL 有效：显示"点我跳转"
+        style = ComponentAdapterImpl.withHoverText(style,
+                Component.literal("点我跳转").withStyle(ChatFormatting.GRAY));
+        style = ComponentAdapterImpl.withOpenUrl(style, imageUrl);
+        
+    } else {
+        // URL 为空：灰色提示，不可点击
+        style = ComponentAdapterImpl.withHoverText(style,
+                Component.literal("[图片链接无效]").withStyle(ChatFormatting.GRAY));
+    }
+    
+    style = style.withColor(ChatFormatting.GREEN);
+    component.append(Component.literal(summary).withStyle(style));
+}
 
     private static void handleAtSegment(MutableComponent component, AtSegment segment) {
         // 这表示 这是一个@玩家的消息
